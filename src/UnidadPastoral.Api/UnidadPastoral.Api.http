@@ -1,0 +1,13 @@
+@UnidadPastoral.Api_HostAddress = http://localhost:5214
+
+GET {{UnidadPastoral.Api_HostAddress}}/api/parishes
+Accept: application/json
+
+###
+POST {{UnidadPastoral.Api_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "CambiaEsto1"
+}
