@@ -1,11 +1,60 @@
 using System.Text;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
 using UnidadPastoral.Api.Data;
 using UnidadPastoral.Api.Services;
+
+static void RestoreDemoData(string contentRootPath, string connectionString, string uploadsPath)
+{
+    var demoDataPath = Path.Combine(contentRootPath, "demo-data");
+    var sourceDatabasePath = Path.Combine(demoDataPath, "unidad-pastoral.db");
+    if (!File.Exists(sourceDatabasePath))
+    {
+        throw new FileNotFoundException("Demo database snapshot was not included in the deployment.", sourceDatabasePath);
+    }
+
+    var databasePath = new SqliteConnectionStringBuilder(connectionString).DataSource;
+    if (string.IsNullOrWhiteSpace(databasePath) || databasePath == ":memory:")
+    {
+        throw new InvalidOperationException("Demo restore requires a file-based SQLite database.");
+    }
+
+    if (!Path.IsPathRooted(databasePath))
+    {
+        databasePath = Path.Combine(contentRootPath, databasePath);
+    }
+
+    if (string.Equals(Path.GetFullPath(sourceDatabasePath), Path.GetFullPath(databasePath), StringComparison.OrdinalIgnoreCase))
+    {
+        throw new InvalidOperationException("The demo snapshot and runtime database must use different paths.");
+    }
+
+    Directory.CreateDirectory(Path.GetDirectoryName(databasePath)!);
+    File.Delete(databasePath + "-wal");
+    File.Delete(databasePath + "-shm");
+    File.Copy(sourceDatabasePath, databasePath, overwrite: true);
+
+    var demoUploadsPath = Path.Combine(demoDataPath, "uploads");
+    if (Directory.Exists(demoUploadsPath))
+    {
+        CopyDemoUploads(demoUploadsPath, uploadsPath);
+    }
+}
+
+static void CopyDemoUploads(string sourcePath, string destinationPath)
+{
+    foreach (var sourceFile in Directory.EnumerateFiles(sourcePath, "*", SearchOption.AllDirectories))
+    {
+        var relativePath = Path.GetRelativePath(sourcePath, sourceFile);
+        var destinationFile = Path.Combine(destinationPath, relativePath);
+        Directory.CreateDirectory(Path.GetDirectoryName(destinationFile)!);
+        File.Copy(sourceFile, destinationFile, overwrite: true);
+    }
+}
 
 static void EnsureDatabaseCompatibility(AppDbContext db)
 {
@@ -76,8 +125,9 @@ builder.Services.AddControllers().AddJsonOptions(options =>
     options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
 });
 builder.Services.AddOpenApi();
+var connectionString = builder.Configuration.GetConnectionString("Default") ?? "Data Source=unidad-pastoral.db";
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("Default") ?? "Data Source=unidad-pastoral.db"));
+    options.UseSqlite(connectionString));
 
 var jwtKey = builder.Configuration["Jwt:Key"];
 if (!builder.Environment.IsDevelopment() && string.IsNullOrWhiteSpace(jwtKey))
@@ -120,6 +170,10 @@ var app = builder.Build();
 
 var uploads = Path.Combine(app.Environment.ContentRootPath, "uploads");
 Directory.CreateDirectory(uploads);
+if (builder.Configuration.GetValue<bool>("Demo:RestoreOnStartup"))
+{
+    RestoreDemoData(app.Environment.ContentRootPath, connectionString, uploads);
+}
 
 using (var scope = app.Services.CreateScope())
 {

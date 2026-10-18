@@ -9,6 +9,7 @@ RUN dotnet publish UnidadPastoral.Api.csproj --configuration Release --output /a
 FROM mcr.microsoft.com/dotnet/aspnet:9.0
 WORKDIR /app
 COPY --from=build /app/publish .
+COPY --from=build /src/src/UnidadPastoral.Api/demo-data ./demo-data
 ENV ASPNETCORE_URLS=http://0.0.0.0:10000
 EXPOSE 10000
 ENTRYPOINT ["dotnet", "UnidadPastoral.Api.dll"]

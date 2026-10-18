@@ -10,3 +10,5 @@ dist/
 *.user
 .env
 .env.local
+!src/UnidadPastoral.Api/demo-data/
+!src/UnidadPastoral.Api/demo-data/**
