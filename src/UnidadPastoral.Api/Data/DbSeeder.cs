@@ -5,7 +5,7 @@ namespace UnidadPastoral.Api.Data;
 
 public static class DbSeeder
 {
-    public static void Seed(AppDbContext db)
+    public static void Seed(AppDbContext db, string adminUsername, string adminPassword)
     {
         if (!db.Parishes.Any())
         {
@@ -66,8 +66,8 @@ public static class DbSeeder
         if (!db.AdminUsers.Any())
         {
             var hasher = new PasswordHasher<AdminUser>();
-            var admin = new AdminUser { Username = "admin" };
-            admin.PasswordHash = hasher.HashPassword(admin, "CambiaEsto1");
+            var admin = new AdminUser { Username = adminUsername };
+            admin.PasswordHash = hasher.HashPassword(admin, adminPassword);
             db.AdminUsers.Add(admin);
             db.SaveChanges();
         }

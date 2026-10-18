@@ -9,6 +9,7 @@ export default function CalendarPage() {
   const [parishId, setParishId] = useState<number | "all">("all");
   const [events, setEvents] = useState<CalendarItem[]>([]);
   const [cursor, setCursor] = useState(() => new Date());
+  const [selectedEvent, setSelectedEvent] = useState<CalendarItem | null>(null);
 
   useEffect(() => {
     api<Parish[]>("/api/parishes").then((items) => {
@@ -85,14 +86,69 @@ export default function CalendarPage() {
             <div key={`${key}-${cell.current}`} className={`day${cell.current ? "" : " muted"}`}>
               <strong>{cell.date.getDate()}</strong>
               {dayEvents.map((event) => (
-                <span key={event.id} className="event-chip" title={event.title}>
-                  {event.title}
-                </span>
+                <button
+                  key={event.id}
+                  type="button"
+                  className="event-chip"
+                  title={`${event.title} · ${event.location || "Lieu non précisé"}`}
+                  onClick={() => setSelectedEvent(event)}
+                >
+                  <strong>{event.allDay ? "Toute la journée" : new Date(event.startsAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</strong>
+                  <span className="event-chip-title">{event.title}</span>
+                  {event.location && <span className="event-chip-location">{event.location}</span>}
+                </button>
               ))}
             </div>
           );
         })}
       </div>
+
+      {selectedEvent && (
+        <div className="event-modal-backdrop" onClick={() => setSelectedEvent(null)}>
+          <section
+            className="event-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="event-modal-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="close-button event-modal-close"
+              aria-label="Fermer les détails de l’événement"
+              onClick={() => setSelectedEvent(null)}
+            >
+              ×
+            </button>
+            <p className="kicker">{selectedEvent.parish?.name ?? "Unité pastorale"}</p>
+            <h2 id="event-modal-title">{selectedEvent.title}</h2>
+            <dl className="event-details">
+              <div>
+                <dt>Date</dt>
+                <dd>{new Date(selectedEvent.startsAt).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</dd>
+              </div>
+              <div>
+                <dt>Horaire</dt>
+                <dd>
+                  {selectedEvent.allDay
+                    ? "Toute la journée"
+                    : `${new Date(selectedEvent.startsAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}${selectedEvent.endsAt ? ` – ${new Date(selectedEvent.endsAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}` : ""}`}
+                </dd>
+              </div>
+              <div>
+                <dt>Lieu</dt>
+                <dd>{selectedEvent.location || "Lieu non précisé"}</dd>
+              </div>
+              {selectedEvent.description && (
+                <div>
+                  <dt>Description</dt>
+                  <dd>{selectedEvent.description}</dd>
+                </div>
+              )}
+            </dl>
+          </section>
+        </div>
+      )}
     </>
   );
 }

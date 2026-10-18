@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { api } from "../api";
+import { api, assetUrl } from "../api";
 import type { CalendarItem, Parish, Photo, PhotoAlbum, Post } from "../types";
 
 export default function ParishPage() {
@@ -68,7 +68,7 @@ export default function ParishPage() {
       <div className="gallery">
         {photos.map((photo) => (
           <figure key={photo.id}>
-            <img src={photo.filePath} alt={photo.title} />
+            <img src={assetUrl(photo.filePath)} alt={photo.title} />
             <figcaption className="meta">
               {photo.title}
               {photo.album ? ` · ${photo.album.name}` : ""}

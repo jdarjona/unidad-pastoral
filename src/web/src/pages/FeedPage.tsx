@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { api } from "../api";
+import { api, assetUrl } from "../api";
 import type { Parish, Post, PostType } from "../types";
 
 export default function FeedPage({ type, title }: { type: PostType; title: string }) {
@@ -43,7 +43,7 @@ export default function FeedPage({ type, title }: { type: PostType; title: strin
             </h3>
             <p className="meta">{new Date(post.publishedAt).toLocaleDateString("fr")}</p>
             {post.attachmentPath && (
-              <a href={post.attachmentPath} target="_blank" rel="noreferrer">
+              <a href={assetUrl(post.attachmentPath)} target="_blank" rel="noreferrer">
                 Télécharger {post.attachmentName ?? "document"}
               </a>
             )}

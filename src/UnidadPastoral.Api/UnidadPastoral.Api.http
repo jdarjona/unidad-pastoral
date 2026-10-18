@@ -11,3 +11,37 @@ Content-Type: application/json
   "username": "admin",
   "password": "CambiaEsto1"
 }
+
+### List pastoral activities
+GET {{UnidadPastoral.Api_HostAddress}}/api/pastorale
+Accept: application/json
+
+### Get a pastoral activity
+GET {{UnidadPastoral.Api_HostAddress}}/api/pastorale/1
+Accept: application/json
+
+### Create a pastoral activity (requires a bearer token)
+POST {{UnidadPastoral.Api_HostAddress}}/api/pastorale
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "name": "Catéchèse",
+  "description": "Rencontre de catéchèse pour les enfants.",
+  "parishId": 1
+}
+
+### Update a pastoral activity (requires a bearer token)
+PUT {{UnidadPastoral.Api_HostAddress}}/api/pastorale/1
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "name": "Catéchèse paroissiale",
+  "description": "Rencontre de catéchèse pour les enfants et les familles.",
+  "parishId": 1
+}
+
+### Delete a pastoral activity (requires a bearer token)
+DELETE {{UnidadPastoral.Api_HostAddress}}/api/pastorale/1
+Authorization: Bearer {{adminToken}}

@@ -8,6 +8,8 @@ import GalleryPage from "./pages/GalleryPage";
 import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
 import ParishPage from "./pages/ParishPage";
+import ParishesPage from "./pages/ParishesPage";
+import PastoralePage from "./pages/PastoralePage";
 import PostPage from "./pages/PostPage";
 
 function Layout({ children }: { children: ReactNode }) {
@@ -25,6 +27,7 @@ function Layout({ children }: { children: ReactNode }) {
           <Link to="/photos">Photos</Link>
           <Link to="/calendrier">Calendrier</Link>
           <Link to="/paroisses">Paroisses</Link>
+          <Link to="/pastorale">Pastorale</Link>
           <Link to="/admin">Publier</Link>
         </nav>
       </header>
@@ -71,7 +74,8 @@ export default function App() {
     <Layout>
       <Routes>
         <Route path="/" element={<HomePage />} />
-        <Route path="/paroisses" element={<HomePage />} />
+        <Route path="/paroisses" element={<ParishesPage />} />
+        <Route path="/pastorale" element={<PastoralePage />} />
         <Route path="/parroquias/:slug" element={<ParishPage />} />
         <Route
           path="/actualites"

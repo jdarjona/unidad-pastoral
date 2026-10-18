@@ -45,6 +45,27 @@ static void EnsureDatabaseCompatibility(AppDbContext db)
             addColumn.ExecuteNonQuery();
         }
     }
+
+    using (var command = connection.CreateCommand())
+    {
+        command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='PastoraleActivities'";
+        var pastoraleTableExists = Convert.ToInt32(command.ExecuteScalar()) > 0;
+
+        if (!pastoraleTableExists)
+        {
+            using var createTable = connection.CreateCommand();
+            createTable.CommandText = @"
+                CREATE TABLE ""PastoraleActivities"" (
+                    ""Id"" INTEGER NOT NULL CONSTRAINT ""PK_PastoraleActivities"" PRIMARY KEY AUTOINCREMENT,
+                    ""Name"" TEXT NOT NULL,
+                    ""Description"" TEXT NOT NULL,
+                    ""ParishId"" INTEGER NOT NULL,
+                    CONSTRAINT ""FK_PastoraleActivities_Parishes_ParishId"" FOREIGN KEY (""ParishId"") REFERENCES ""Parishes"" (""Id"") ON DELETE CASCADE
+                );
+                CREATE INDEX ""IX_PastoraleActivities_ParishId"" ON ""PastoraleActivities"" (""ParishId"");";
+            createTable.ExecuteNonQuery();
+        }
+    }
 }
 
 var builder = WebApplication.CreateBuilder(args);
@@ -58,7 +79,18 @@ builder.Services.AddOpenApi();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("Default") ?? "Data Source=unidad-pastoral.db"));
 
-var jwtKey = builder.Configuration["Jwt:Key"] ?? "dev-key-change-me-please-use-32chars!";
+var jwtKey = builder.Configuration["Jwt:Key"];
+if (!builder.Environment.IsDevelopment() && string.IsNullOrWhiteSpace(jwtKey))
+{
+    throw new InvalidOperationException("Configure Jwt:Key with a secret environment variable before starting outside Development.");
+}
+
+jwtKey ??= "dev-key-change-me-please-use-32chars";
+if (Encoding.UTF8.GetByteCount(jwtKey) < 32)
+{
+    throw new InvalidOperationException("Jwt:Key must contain at least 32 bytes.");
+}
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -73,11 +105,16 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 builder.Services.AddAuthorization();
+var allowedOrigins = builder.Configuration["Cors:AllowedOrigins"]?
+    .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries) ?? [];
 builder.Services.AddCors(options =>
     options.AddDefaultPolicy(policy =>
-        policy.WithOrigins("http://localhost:5173").AllowAnyHeader().AllowAnyMethod()));
+        policy.WithOrigins(new[] { "http://localhost:5173" }.Concat(allowedOrigins).ToArray())
+            .AllowAnyHeader()
+            .AllowAnyMethod()));
 builder.Services.AddSingleton<TokenService>();
 builder.Services.AddSingleton<UploadService>();
+builder.Services.AddScoped<IPastoraleActivityService, PastoraleActivityService>();
 
 var app = builder.Build();
 
@@ -89,7 +126,16 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.EnsureCreated();
     EnsureDatabaseCompatibility(db);
-    DbSeeder.Seed(db);
+    var initialAdminPassword = builder.Configuration["Admin:InitialPassword"];
+    if (string.IsNullOrWhiteSpace(initialAdminPassword) && !app.Environment.IsDevelopment())
+    {
+        throw new InvalidOperationException("Configure Admin:InitialPassword before starting outside Development.");
+    }
+
+    DbSeeder.Seed(
+        db,
+        builder.Configuration["Admin:Username"] ?? "admin",
+        initialAdminPassword ?? "CambiaEsto1");
 }
 
 if (app.Environment.IsDevelopment())

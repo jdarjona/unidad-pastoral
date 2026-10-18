@@ -1,4 +1,14 @@
 const TOKEN_KEY = "up_token";
+const API_BASE_URL = (import.meta.env.VITE_API_URL ?? "").replace(/\/+$/, "");
+
+function resolveUrl(path: string) {
+  if (/^https?:\/\//i.test(path)) return path;
+  return `${API_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
+}
+
+export function assetUrl(path: string | null | undefined) {
+  return path ? resolveUrl(path) : "";
+}
 
 export function getToken() {
   return localStorage.getItem(TOKEN_KEY);
@@ -19,7 +29,7 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     headers.set("Authorization", `Bearer ${token}`);
   }
 
-  const response = await fetch(path, { ...init, headers });
+  const response = await fetch(resolveUrl(path), { ...init, headers });
   if (!response.ok) {
     throw new Error(await response.text() || response.statusText);
   }

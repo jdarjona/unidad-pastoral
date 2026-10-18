@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api } from "../api";
+import { api, assetUrl } from "../api";
 import type { Parish, Photo, PhotoAlbum } from "../types";
 
 export default function GalleryPage() {
@@ -68,7 +68,7 @@ export default function GalleryPage() {
         {photos.map((photo) => (
           <figure key={photo.id}>
             <button type="button" className="photo-tile-button" onClick={() => setSelectedPhoto(photo)}>
-              <img src={photo.filePath} alt={photo.title} />
+              <img src={assetUrl(photo.filePath)} alt={photo.title} />
             </button>
             <figcaption className="meta">
               {photo.title}
@@ -84,7 +84,7 @@ export default function GalleryPage() {
         <div className="photo-modal-backdrop" onClick={() => setSelectedPhoto(null)}>
           <div className="photo-modal-card" onClick={(event) => event.stopPropagation()}>
             <button type="button" className="close-button" onClick={() => setSelectedPhoto(null)} aria-label="Fermer">×</button>
-            <img src={selectedPhoto.filePath} alt={selectedPhoto.title} className="photo-modal-image" />
+            <img src={assetUrl(selectedPhoto.filePath)} alt={selectedPhoto.title} className="photo-modal-image" />
             <div className="photo-modal-content">
               <h3>{selectedPhoto.title}</h3>
               {selectedPhoto.caption && <p>{selectedPhoto.caption}</p>}

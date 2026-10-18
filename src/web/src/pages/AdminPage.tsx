@@ -1,9 +1,9 @@
 import { FormEvent, useEffect, useState } from "react";
 import { api, setToken } from "../api";
-import type { CalendarItem, Parish, Photo, PhotoAlbum, Post } from "../types";
+import type { CalendarItem, Parish, Photo, PhotoAlbum, PastoraleActivity, Post } from "../types";
 
-type AdminTab = "posts" | "albums" | "photos" | "calendar";
-type PendingDelete = { type: "post" | "photo" | "event"; id: number };
+type AdminTab = "posts" | "albums" | "photos" | "calendar" | "pastorale";
+type PendingDelete = { type: "post" | "photo" | "event" | "pastorale"; id: number };
 
 type EditorState = {
   tab: AdminTab;
@@ -19,6 +19,7 @@ export default function AdminPage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [events, setEvents] = useState<CalendarItem[]>([]);
+  const [pastoraleActivities, setPastoraleActivities] = useState<PastoraleActivity[]>([]);
   const [message, setMessage] = useState("");
   const [successModal, setSuccessModal] = useState("");
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
@@ -38,6 +39,11 @@ export default function AdminPage() {
   const [eventFilter, setEventFilter] = useState("");
   const [eventDateFilter, setEventDateFilter] = useState("");
   const [eventParishFilter, setEventParishFilter] = useState("all");
+  const [editingPastorale, setEditingPastorale] = useState<PastoraleActivity | null>(null);
+  const [pastoraleName, setPastoraleName] = useState("");
+  const [pastoraleDescription, setPastoraleDescription] = useState("");
+  const [pastoraleParishId, setPastoraleParishId] = useState("");
+  const [pastoraleError, setPastoraleError] = useState("");
 
   useEffect(() => {
     loadData();
@@ -49,18 +55,20 @@ export default function AdminPage() {
   }
 
   async function loadData() {
-    const [parishList, albumList, postList, photoList, eventList] = await Promise.all([
+    const [parishList, albumList, postList, photoList, eventList, pastoraleList] = await Promise.all([
       api<Parish[]>('/api/parishes'),
       api<PhotoAlbum[]>('/api/photo-albums'),
       api<Post[]>('/api/posts'),
       api<Photo[]>('/api/photos'),
-      api<CalendarItem[]>('/api/calendar')
+      api<CalendarItem[]>('/api/calendar'),
+      api<PastoraleActivity[]>('/api/pastorale')
     ]);
     setParishes(parishList);
     setAlbums(albumList);
     setPosts(postList);
     setPhotos(photoList);
     setEvents(eventList);
+    setPastoraleActivities(pastoraleList);
   }
 
   async function createAlbum(event: FormEvent<HTMLFormElement>) {
@@ -92,6 +100,60 @@ export default function AdminPage() {
     } catch (error) {
       setEditorError(error instanceof Error ? error.message : 'Erreur inconnue.');
     }
+  }
+
+  async function handleSubmitPastorale(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setPastoraleError("");
+    const payload = {
+      name: pastoraleName.trim(),
+      description: pastoraleDescription.trim(),
+      parishId: Number(pastoraleParishId)
+    };
+
+    try {
+      if (editingPastorale) {
+        await api(`/api/pastorale/${editingPastorale.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        setMessage('Activité pastorale mise à jour.');
+        showSuccessModal('Activité pastorale mise à jour.');
+      } else {
+        await api('/api/pastorale', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        setMessage('Activité pastorale ajoutée.');
+        showSuccessModal('Activité pastorale ajoutée.');
+      }
+
+      setEditingPastorale(null);
+      setPastoraleName('');
+      setPastoraleDescription('');
+      setPastoraleParishId('');
+      await loadData();
+    } catch (error) {
+      setPastoraleError(error instanceof Error ? error.message : 'Erreur inconnue.');
+    }
+  }
+
+  function editPastorale(activity: PastoraleActivity) {
+    setEditingPastorale(activity);
+    setPastoraleName(activity.name);
+    setPastoraleDescription(activity.description);
+    setPastoraleParishId(String(activity.parishId));
+    setPastoraleError('');
+  }
+
+  function cancelPastoraleEdit() {
+    setEditingPastorale(null);
+    setPastoraleName('');
+    setPastoraleDescription('');
+    setPastoraleParishId('');
+    setPastoraleError('');
   }
 
   function closeEditor() {
@@ -267,6 +329,12 @@ export default function AdminPage() {
       await api(`/api/calendar/${target.id}`, { method: 'DELETE' });
       setMessage('Événement supprimé.');
       showSuccessModal('Événement supprimé.');
+    }
+
+    if (target.type === 'pastorale') {
+      await api(`/api/pastorale/${target.id}`, { method: 'DELETE' });
+      setMessage('Activité pastorale supprimée.');
+      showSuccessModal('Activité pastorale supprimée.');
     }
 
     setPendingDelete(null);
@@ -661,9 +729,87 @@ export default function AdminPage() {
         >
           Calendrier
         </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'pastorale'}
+          className={activeTab === 'pastorale' ? 'active' : ''}
+          onClick={() => setActiveTab('pastorale')}
+        >
+          Pastorale
+        </button>
       </div>
 
       <div className="admin-panel">
+        {activeTab === 'pastorale' && (
+          <section className="stack card admin-section">
+            <div className="admin-toolbar">
+              <h2>{editingPastorale ? 'Modifier une activité pastorale' : 'Ajouter une activité pastorale'}</h2>
+            </div>
+
+            {pastoraleError && <p className="modal-error">{pastoraleError}</p>}
+
+            <form className="stack pastorale-admin-form" onSubmit={handleSubmitPastorale}>
+              <label>
+                Nom
+                <input
+                  value={pastoraleName}
+                  onChange={(event) => setPastoraleName(event.target.value)}
+                  maxLength={200}
+                  required
+                />
+              </label>
+              <label>
+                Description
+                <textarea
+                  value={pastoraleDescription}
+                  onChange={(event) => setPastoraleDescription(event.target.value)}
+                  maxLength={4000}
+                  rows={4}
+                  required
+                />
+              </label>
+              <label>
+                Paroisse
+                <select
+                  value={pastoraleParishId}
+                  onChange={(event) => setPastoraleParishId(event.target.value)}
+                  required
+                >
+                  <option value="">Choisir une paroisse</option>
+                  {parishes.map((parish) => (
+                    <option key={parish.id} value={parish.id}>{parish.name}</option>
+                  ))}
+                </select>
+              </label>
+              <div className="modal-actions">
+                {editingPastorale && <button type="button" onClick={cancelPastoraleEdit}>Annuler</button>}
+                <button type="submit" className="primary">
+                  {editingPastorale ? 'Enregistrer les modifications' : 'Publier l’activité'}
+                </button>
+              </div>
+            </form>
+
+            <div className="admin-list">
+              <h3>Activités publiées</h3>
+              {pastoraleActivities.map((activity) => (
+                <div key={activity.id} className="admin-item">
+                  <div>
+                    <strong>{activity.name}</strong>
+                    <div className="meta">{activity.description}</div>
+                    <div className="meta">{activity.parishName}</div>
+                  </div>
+                  <div className="admin-actions">
+                    <button type="button" onClick={() => editPastorale(activity)}>Modifier</button>
+                    <button type="button" onClick={() => setPendingDelete({ type: 'pastorale', id: activity.id })}>Supprimer</button>
+                  </div>
+                </div>
+              ))}
+              {!pastoraleActivities.length && <p className="meta empty-state">Aucune activité pastorale publiée.</p>}
+            </div>
+          </section>
+        )}
+
         {activeTab === 'posts' && (
           <section className="stack card admin-section">
             <div className="admin-toolbar">

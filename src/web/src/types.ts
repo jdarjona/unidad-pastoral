@@ -58,3 +58,11 @@ export type CalendarItem = {
   endsAt?: string | null;
   allDay: boolean;
 };
+
+export type PastoraleActivity = {
+  id: number;
+  name: string;
+  description: string;
+  parishId: number;
+  parishName: string;
+};
